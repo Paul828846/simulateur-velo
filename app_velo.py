@@ -47,25 +47,26 @@ def analyze_gpx(file, vf_k, vc_k, vd_k, wr, wb, v_wind_k):
     
     if not all_p: return None
 
-    # --- ÉTAPE DE LISSAGE (Moyenne mobile sur 5 points) ---
+    # --- ÉTAPE DE LISSAGE (Version compatible Pandas 2.0+) ---
     elevations = [p[2] for p in all_p]
-    smoothed_elevations = pd.Series(elevations).rolling(window=5, center=True).mean().fillna(method='bfill').fillna(method='ffill').tolist()
+    # On utilise .bfill() et .ffill() directement au lieu de l'argument method
+    smoothed_elevations = pd.Series(elevations).rolling(window=5, center=True).mean().bfill().ffill().tolist()
+    
     for i in range(len(all_p)):
         all_p[i][2] = smoothed_elevations[i]
 
     # --- CALCUL AVEC SEUIL ---
-    seuil_denivele = 0.5  # On n'ajoute du D+ que si la montée > 50cm entre deux points
+    seuil_denivele = 0.5  
     
     for i in range(1, len(all_p)):
         p1, p2 = all_p[i-1], all_p[i]
         e1, e2 = p1[2], p2[2]
         d = haversine(p1[0], p1[1], p2[0], p2[1])
-        if d < 2: continue # Ignore les points trop proches (bruit horizontal)
+        if d < 2: continue 
         
         dist_t += d
         diff = e2 - e1
         
-        # Application du seuil pour éviter le cumul du "bruit"
         if diff > seuil_denivele: 
             dp += diff
         elif diff < -seuil_denivele: 
